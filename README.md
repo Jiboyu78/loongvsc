@@ -59,8 +59,10 @@ export VSCODE_LOONG64_CHROMIUM_SYSROOT_DIR=$VSCODE_LOONG64_SYSROOT_DIR
 ```
 
 The build requires a native or emulated `linux/loong64` environment, a new-world LP64D sysroot and
-a LoongArch Electron/Chromium build. See [`LOONGARCH64-PORT.md`](.porting/LOONGARCH64-PORT.md) for
-the full list of environment variables and the reasoning behind them.
+a LoongArch Electron/Chromium build. `@vscode/openssl-prebuilt` publishes no LoongArch build, so a
+LoongArch OpenSSL has to be placed in `cli/openssl/package/out/loong64-linux` before the Rust CLI
+is built. See [`LOONGARCH64-PORT.md`](.porting/LOONGARCH64-PORT.md) for the full list of
+environment variables and the reasoning behind them.
 
 ## Keeping credentials out of the repository
 
