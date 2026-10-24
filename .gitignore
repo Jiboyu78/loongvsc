@@ -1,0 +1,123 @@
+# =============================================================================
+# Credentials and secrets
+# =============================================================================
+# Nothing matching this section may ever be committed. A leaked credential has
+# to be rotated, so the patterns are deliberately broad.
+
+# Local environment files: API keys, tokens, service endpoints.
+.env
+.env.*
+*.env
+!.env.example
+!.env.template
+!.env.sample
+
+# The vendored upstream tree keeps three test fixtures whose names collide
+# with the rules above. They are re-included so that `.porting/vscode` stays
+# byte-for-byte in sync with microsoft/vscode.
+!.porting/vscode/extensions/copilot/test/simulation/fixtures/multiFileEdit/issue-9647/.env
+!.porting/vscode/extensions/vscode-colorize-tests/test/colorize-fixtures/test.env
+
+# npm registry credentials. The `.npmrc` files inside the vendored upstream
+# tree hold build configuration only (Electron/Node versions) and no tokens,
+# so only a workspace-local `.npmrc` is ignored here.
+/.npmrc
+*.npmrc.local
+
+# Private keys, keystores and certificates.
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.crt
+*.cer
+*.der
+id_rsa
+id_rsa.*
+id_dsa
+id_dsa.*
+id_ecdsa
+id_ecdsa.*
+id_ed25519
+id_ed25519.*
+*.gpg
+*.asc
+.ssh/
+
+# Cloud and CI credentials.
+.aws/
+.azure/
+.gcloud/
+.netrc
+.docker/config.json
+.credentials/
+.secrets/
+*_rsa
+*_dsa
+*_ed25519
+
+# =============================================================================
+# Editor, IDE and operating system noise
+# =============================================================================
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+.idea/
+.vscode/*.local.json
+.vscode/settings.local.json
+.vscode-test/
+
+# =============================================================================
+# Vendored upstream checkout
+# =============================================================================
+# `.porting/vscode` is a checkout of microsoft/vscode. Its own git metadata
+# belongs to that checkout and must never be committed into this repository.
+.porting/vscode/.git/
+
+# =============================================================================
+# Reference inputs (large, and not product source)
+# =============================================================================
+# The x86-64 reference package and the tree extracted from it are comparison
+# material only. They are far above the 100 MB per-file limit that GitHub
+# enforces, so they can never be part of this repository.
+*.deb
+*.rpm
+.porting/deb-root/
+
+# =============================================================================
+# Build output
+# =============================================================================
+# The vendored tree carries its own `.gitignore` for its build output; these
+# rules cover the workspace root and any build that happens outside of it.
+node_modules/
+/.build/
+/out/
+/out-vscode*/
+/out-build/
+/extensionsCG/
+/dist/
+*.tsbuildinfo
+.eslintcache
+coverage/
+test-results/
+test-results.xml
+*.log
+!.porting/vscode/extensions/vscode-colorize-tests/test/colorize-fixtures/test.log
+
+# =============================================================================
+# Local agent / editor state
+# =============================================================================
+.claude/
+.agent-validation/
+*.local.json
+*.local.md
+*.local.instructions.md
+*.local.prompt.md
+*.local.agent.md
+*.local.json
