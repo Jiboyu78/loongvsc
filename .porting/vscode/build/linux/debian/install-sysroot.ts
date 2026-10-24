@@ -106,6 +106,16 @@ export async function getVSCodeSysroot(arch: DebianArchString, isMusl: boolean =
 		if (!fs.existsSync(sysroot)) {
 			throw new Error(`VSCODE_LOONG64_SYSROOT_DIR does not exist: ${sysroot}`);
 		}
+		// The dependency calculation probes the multiarch library directories of
+		// the sysroot. A sysroot that does not have them - for example one that
+		// was unpacked in the `${triple}/${triple}/sysroot` layout of the
+		// Microsoft hosted sysroots - would silently produce an incomplete
+		// `Depends:` list, so reject it here.
+		for (const libraryDir of ['usr/lib/loongarch64-linux-gnu', 'lib/loongarch64-linux-gnu']) {
+			if (!fs.existsSync(path.join(sysroot, libraryDir))) {
+				throw new Error(`VSCODE_LOONG64_SYSROOT_DIR does not look like a LoongArch sysroot: ${path.join(sysroot, libraryDir)} is missing. It has to be the sysroot root that contains usr/lib/loongarch64-linux-gnu.`);
+			}
+		}
 		return sysroot;
 	}
 	let expectedName: string;

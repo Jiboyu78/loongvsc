@@ -48,15 +48,42 @@ if [[ -n "${VSCODE_ELECTRON_REPOSITORY:-}" ]]; then
 	fi
 fi
 
+# nodejs.org publishes no linux-loong64 tarball for any release, so the Node.js
+# build has to come from a mirror that hosts one. The archive also has to be
+# verifiable: without a checksum the download is accepted unverified.
+if [[ -z "${VSCODE_NODE_MIRROR:-}" ]]; then
+	printf 'VSCODE_NODE_MIRROR must point at a mirror that hosts node-v*-linux-loong64.tar.gz (nodejs.org publishes none)\n' >&2
+	exit 1
+fi
+if [[ -z "${VSCODE_NODE_CHECKSUM_FILE:-}" ]]; then
+	printf 'VSCODE_NODE_CHECKSUM_FILE must point at the SHASUMS256.txt of the Node.js mirror\n' >&2
+	exit 1
+fi
+if [[ ! -f "$VSCODE_NODE_CHECKSUM_FILE" ]]; then
+	printf 'VSCODE_NODE_CHECKSUM_FILE does not exist: %s\n' "$VSCODE_NODE_CHECKSUM_FILE" >&2
+	exit 1
+fi
+
 cd "$repo_root"
 source build/azure-pipelines/linux/setup-env.sh
-
 # The upstream ripgrep-universal package has no LoongArch artifact. Inject the
 # audited native binary into the same layout consumed by the existing search
 # service and package filters.
-mkdir -p node_modules/@vscode/ripgrep-universal/bin/linux-loong64
-cp "$ripgrep_dir/rg" node_modules/@vscode/ripgrep-universal/bin/linux-loong64/rg
-chmod +x node_modules/@vscode/ripgrep-universal/bin/linux-loong64/rg
+#
+# The remote server (REH) is packaged from `remote/node_modules` and has its own
+# copy of @vscode/ripgrep-universal, so the binary has to be injected there as
+# well. The packaging filter keeps only the `linux-loong64` directory, so
+# without this the remote server would ship without any ripgrep at all.
+for ripgrep_root in node_modules remote/node_modules; do
+	ripgrep_target="$ripgrep_root/@vscode/ripgrep-universal/bin/linux-loong64"
+	if [[ ! -d "$ripgrep_root/@vscode/ripgrep-universal" ]]; then
+		printf 'Expected %s/@vscode/ripgrep-universal to exist; run `npm ci` first\n' "$ripgrep_root" >&2
+		exit 1
+	fi
+	mkdir -p "$ripgrep_target"
+	cp "$ripgrep_dir/rg" "$ripgrep_target/rg"
+	chmod +x "$ripgrep_target/rg"
+done
 
 npm run gulp core-ci
 npm run gulp vscode-linux-loong64-min-ci

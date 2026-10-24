@@ -390,7 +390,16 @@ steps:
           TRIPLE="loongarch64-linux-gnu"
         fi
         export VSCODE_SYSROOT_DIR=$(Build.SourcesDirectory)/.build/sysroots/glibc-2.28-gcc-10.5.0
+        if [ "$VSCODE_ARCH" == "loong64" ]; then
+          # Microsoft does not publish a LoongArch sysroot, so the LoongArch
+          # build has to use the sysroot that was provisioned for it.
+          export VSCODE_SYSROOT_DIR="$VSCODE_LOONG64_SYSROOT_DIR"
+        fi
         export STRIP="$VSCODE_SYSROOT_DIR/$TRIPLE/$TRIPLE/bin/strip"
+        if [ ! -x "$STRIP" ]; then
+          echo "Error: strip not found at $STRIP" >&2
+          exit 1
+        fi
         npm run gulp "vscode-linux-$(VSCODE_ARCH)-prepare-rpm"
       env:
         VSCODE_ARCH: $(VSCODE_ARCH)

@@ -88,7 +88,10 @@ export VSCODE_NODE_CHECKSUM_FILE=/path/to/nodejs-SHASUMS256.txt
 
 export VSCODE_LOONG64_RIPGREP_DIR=/path/to/audited-loong64-ripgrep
 
-# A cross sysroot, or `/` for a native new-world LoongArch build host.
+# A cross sysroot, or `/` for a native new-world LoongArch build host. It has to
+# be the sysroot *root*, i.e. the directory that contains
+# `usr/lib/loongarch64-linux-gnu` - not the `${triple}/${triple}/sysroot`
+# layout that the Microsoft hosted sysroots use.
 export VSCODE_LOONG64_SYSROOT_DIR=/path/to/new-world-loong64-sysroot
 export VSCODE_LOONG64_CHROMIUM_SYSROOT_DIR=$VSCODE_LOONG64_SYSROOT_DIR
 
@@ -99,11 +102,20 @@ export VSCODE_LOONG64_CHROMIUM_SYSROOT_DIR=$VSCODE_LOONG64_SYSROOT_DIR
 ./scripts/build-loong64.sh
 ```
 
+`@vscode/openssl-prebuilt` publishes no LoongArch build, so the Rust CLI cannot use the prebuilt
+OpenSSL packages. A LoongArch OpenSSL has to be placed in
+`cli/openssl/package/out/loong64-linux` before the CLI is built; without it the build fails
+instead of silently linking against the system OpenSSL.
+
 The build script creates a `loong64` Debian package, extracts it, and rejects every ELF that is not
 LoongArch LP64D or that requests a dynamic interpreter other than
 `/lib64/ld-linux-loongarch-lp64d.so.1`. It also runs
 `scripts/verify-code-oss-boundary.sh` to reject Marketplace/Copilot/Remote Development payloads
 and proprietary product fields from the release tree.
+
+The audited ripgrep binary is injected into both `node_modules` and `remote/node_modules`: the
+remote server is packaged from the latter and has its own copy of
+`@vscode/ripgrep-universal`, whose packaging filter keeps only the `linux-loong64` directory.
 
 ## Release gates
 

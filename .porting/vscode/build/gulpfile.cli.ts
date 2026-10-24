@@ -57,6 +57,15 @@ const hasLocalRust = (() => {
 })();
 
 const compileFromSources = (callback: (err?: string) => void) => {
+	// `@vscode/openssl-prebuilt` does not publish a LoongArch build, so the
+	// fallback below that acquires the prebuilt OpenSSL packages cannot produce
+	// one either. Without a LoongArch OpenSSL the `openssl-sys` build would
+	// silently link against the system OpenSSL, so fail loudly instead.
+	if (process.arch === 'loong64' && !existsSync(platformOpensslDir)) {
+		callback(`No LoongArch OpenSSL found at ${platformOpensslDir}. @vscode/openssl-prebuilt does not ship a loong64 build, so a LoongArch OpenSSL has to be provided in cli/openssl/package/out/loong64-linux.`);
+		return;
+	}
+
 	const proc = cp.spawn('cargo', ['--color', 'always', 'build'], {
 		cwd: root,
 		stdio: ['ignore', 'pipe', 'pipe'],

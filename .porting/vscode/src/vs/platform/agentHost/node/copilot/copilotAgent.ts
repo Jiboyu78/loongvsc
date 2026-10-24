@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { CopilotClient, RuntimeConnection, type CopilotClientOptions, type GitHubTelemetryNotification, type ManagedSettingsResolvedData, type SessionMetadata, type SessionMode as CopilotSdkMode } from '@github/copilot-sdk';
+import type { CopilotClient, CopilotClientOptions, GitHubTelemetryNotification, ManagedSettingsResolvedData, SessionMetadata, SessionMode as CopilotSdkMode } from '@github/copilot-sdk';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import { pathToFileURL } from 'url';
@@ -103,6 +103,47 @@ import { CopilotSlashCommandProvider } from './copilotSlashCommandProvider.js';
 import { SessionMcpDiscovery } from '../shared/sessionMcpDiscovery.js';
 import { hasClientPluginMcpDefaultCwd, readClientPluginMcpDefaultCwd } from '../../common/meta/clientPluginCustomizationMeta.js';
 import { classifyCopilotClientOperationFailure, CopilotClientStartupConfigChangedError, createCopilotFailureCorrelation, isRecognizedCopilotClientStartupFailure, reportCopilotClientOperationFailure, reportCopilotClientRecovery, reportCopilotClientRecoveryTurn, reportCopilotClientStartup, type CopilotClientOperation, type CopilotClientOperationFailureKind, type ICopilotFailureCorrelation } from './copilotFailureTelemetry.js';
+
+type CopilotSdkModule = typeof import('@github/copilot-sdk');
+
+/**
+ * Stand-in for the Copilot SDK when it is not installed. It only provides what
+ * the client construction path touches and it fails loudly as soon as an
+ * actual Copilot client is created, because without the SDK there is no
+ * Copilot provider.
+ */
+const missingCopilotSdk = {
+	RuntimeConnection: {
+		forStdio: (options: { path: string }) => ({ kind: 'stdio', path: options.path }),
+	},
+	CopilotClient: class {
+		constructor() {
+			throw new Error('The Copilot SDK is not installed. The Copilot agent provider requires the optional @github/copilot-sdk package.');
+		}
+	},
+	approveAll: undefined,
+} as unknown as CopilotSdkModule;
+
+/**
+ * The Copilot SDK is an optional native dependency: Code - OSS does not install
+ * it and does not ship it. It is therefore loaded on demand instead of being
+ * imported statically, so that this module stays importable - and the unit
+ * tests that cover it stay runnable - on a tree that has no SDK installed. The
+ * loader is only reached by a downstream product that actually registers the
+ * Copilot provider.
+ */
+let copilotSdkModule: CopilotSdkModule | undefined;
+
+async function loadCopilotSdk(): Promise<CopilotSdkModule> {
+	if (!copilotSdkModule) {
+		try {
+			copilotSdkModule = await import('@github/copilot-sdk');
+		} catch {
+			copilotSdkModule = missingCopilotSdk;
+		}
+	}
+	return copilotSdkModule;
+}
 
 interface ICopilotRuntimeManagedSettingsInput {
 	authInfo?: { type: 'token'; host: string; token: string };
@@ -1350,7 +1391,10 @@ export class CopilotAgent extends Disposable implements IAgent {
 	}
 
 	protected _createCopilotClient(options: CopilotClientOptions): CopilotClient {
-		return new CopilotClient(options);
+		if (!copilotSdkModule) {
+			throw new Error('The Copilot SDK has to be loaded before a Copilot client can be created.');
+		}
+		return new copilotSdkModule.CopilotClient(options);
 	}
 
 	// ---- auth ---------------------------------------------------------------
@@ -2384,6 +2428,10 @@ export class CopilotAgent extends Disposable implements IAgent {
 				env['OTEL_METRICS_EXPORTER'] = 'none';
 			}
 			const copilotSdkLogLevelAtStartup = this._resolveCopilotSdkLogLevel(startupConfig.copilotSdkLogLevel);
+
+			// The SDK is loaded here, and not at module load time, so that a tree
+			// without the optional Copilot SDK stays importable.
+			const { RuntimeConnection } = await loadCopilotSdk();
 
 			const clientOptions: CopilotClientOptions = {
 				useLoggedInUser: false,

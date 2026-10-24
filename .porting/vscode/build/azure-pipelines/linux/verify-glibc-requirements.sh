@@ -11,6 +11,15 @@ elif [ "$VSCODE_ARCH" == "loong64" ]; then
   TRIPLE="loongarch64-linux-gnu"
 fi
 
+# The objdump of the sysroot is what the version check below is based on. If it
+# is missing, the `while` loop below would read nothing at all and the script
+# would report success without having verified a single file.
+OBJDUMP="$VSCODE_SYSROOT_DIR/$TRIPLE/$TRIPLE/bin/objdump"
+if [ ! -x "$OBJDUMP" ]; then
+  echo "Error: objdump not found at $OBJDUMP" >&2
+  exit 1
+fi
+
 # Get all files with .node extension from server folder
 files=$(find $SEARCH_PATH -name "*.node" -not -path "*prebuilds*" -not -path "*extensions/node_modules/@parcel/watcher*" -o -type f -executable -name "node")
 
@@ -33,7 +42,7 @@ for file in $files; do
         glibcxx_version=$version
       fi
     fi
-  done < <("$VSCODE_SYSROOT_DIR/$TRIPLE/$TRIPLE/bin/objdump" -T "$file")
+  done < <("$OBJDUMP" -T "$file")
 
   if [[ "$glibc_version" != "$EXPECTED_GLIBC_VERSION" ]]; then
     echo "Error: File $file has dependency on GLIBC > $EXPECTED_GLIBC_VERSION, found $glibc_version"
